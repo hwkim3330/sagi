@@ -406,23 +406,30 @@ async function load(key) {
   }
   $("llm-bar").style.width = "100%"; $("llm-pct").textContent = "100%";
 
-  // TTS: Supertonic-2 via transformers.js, Web Speech API as fallback
+  // TTS: Supertonic-2 via transformers.js v3.8 (v4 dropped Supertonic model class)
   $("tts-bar-group").style.display = "";
+  $("ld-status").textContent = "음성 엔진 준비 중...";
   try {
-    $("ld-status").textContent = "음성 엔진 로딩 (Supertonic)...";
-    tts = await pipeline("text-to-speech", TTS_ID, {
-      dtype: "fp32", device: "wasm",
+    const { pipeline: ttsPipeline } = await import(
+      "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1"
+    );
+    $("ld-status").textContent = "Supertonic TTS 다운로드 중...";
+    tts = await ttsPipeline("text-to-speech", TTS_ID, {
+      dtype: "fp32",
       progress_callback: ({status,file,loaded,total}) => {
         if (status==="progress") { tf.set(file,{loaded,total}); ub(tf,"tts-bar","tts-pct"); }
       },
     });
     ttsMode = "supertonic";
+    console.log("Supertonic TTS loaded OK (v3.8.1)");
   } catch(e) {
-    console.warn("Supertonic TTS failed, using Web Speech API:", e);
-    tts = null; ttsMode = "webspeech";
+    console.warn("Supertonic TTS failed:", e);
+    tts = null;
+    ttsMode = window.speechSynthesis ? "webspeech" : "none";
+    console.log("TTS fallback:", ttsMode);
   }
   $("tts-bar").style.width = "100%";
-  $("tts-pct").textContent = ttsMode === "supertonic" ? "100%" : "Web";
+  $("tts-pct").textContent = ttsMode === "supertonic" ? "100%" : ttsMode === "webspeech" ? "Web" : "N/A";
 
   // Ready
   $("tag").textContent = m.name;
