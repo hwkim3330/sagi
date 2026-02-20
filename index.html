@@ -338,12 +338,13 @@ const $ = id => document.getElementById(id);
 const chat = $("chat"), ta = $("ta"), sb = $("sb");
 const ib = $("ib"), fi = $("fi"), imgPv = $("img-pv"), imgSrc = $("img-pv-src");
 
-/* ===== CLEANUP: unregister old COI SW if any ===== */
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.getRegistrations().then(regs => {
-    for (const r of regs) r.unregister();
+/* ===== CLEANUP: force-remove old COI SW that blocks Workers ===== */
+if ("serviceWorker" in navigator && window.crossOriginIsolated) {
+  navigator.serviceWorker.getRegistrations().then(async regs => {
+    for (const r of regs) await r.unregister();
+    sessionStorage.removeItem("coi");
+    location.reload();
   });
-  sessionStorage.removeItem("coi");
 }
 
 /* ===== MODEL CARDS ===== */
