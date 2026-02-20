@@ -297,8 +297,8 @@ import {
 /* ===== CONFIG ===== */
 const MODELS = {
   lfm: {
-    id: "onnx-community/LFM2-1.2B-ONNX",
-    name: "LFM2 1.2B", icon: "\u{1f9e0}", desc: "한국어 추천",
+    id: "LiquidAI/LFM2.5-1.2B-Instruct-ONNX",
+    name: "LFM2.5 1.2B", icon: "\u{1f9e0}", desc: "한국어 추천",
     size: "~700 MB", lang: "한국어 / English",
     dtype: "q4f16", task: "text-generation",
     sample: true, temp: 0.7, maxTokens: 512,
@@ -320,7 +320,7 @@ const MODELS = {
 };
 
 const TTS_ID = "onnx-community/Supertonic-TTS-2-ONNX";
-const TTS_VOICE = "https://huggingface.co/onnx-community/Supertonic-TTS-2-ONNX/resolve/main/voices";
+const TTS_VOICE_BASE = "https://huggingface.co/onnx-community/Supertonic-TTS-2-ONNX/resolve/main/voices";
 
 const SYS = {
   role: "system",
@@ -328,7 +328,7 @@ const SYS = {
 };
 
 /* ===== STATE ===== */
-let gen = null, tts = null, msgs = [SYS];
+let gen = null, tts = null, ttsMode = "webspeech", msgs = [SYS];
 let busy = false, autoSpeak = true, curKey = null;
 let audioCtx = null, curSrc = null, pendImg = null;
 const stop = new InterruptableStoppingCriteria();
@@ -406,16 +406,28 @@ async function load(key) {
   }
   $("llm-bar").style.width = "100%"; $("llm-pct").textContent = "100%";
 
-  // TTS: Supertonic-TTS-2-ONNX not compatible with transformers.js pipeline yet
-  // (missing preprocessor_config.json). Skip for now.
-  tts = null;
+  // TTS: Supertonic-2 via transformers.js, Web Speech API as fallback
+  $("tts-bar-group").style.display = "";
+  try {
+    $("ld-status").textContent = "음성 엔진 로딩 (Supertonic)...";
+    tts = await pipeline("text-to-speech", TTS_ID, {
+      dtype: "fp32", device: "wasm",
+      progress_callback: ({status,file,loaded,total}) => {
+        if (status==="progress") { tf.set(file,{loaded,total}); ub(tf,"tts-bar","tts-pct"); }
+      },
+    });
+    ttsMode = "supertonic";
+  } catch(e) {
+    console.warn("Supertonic TTS failed, using Web Speech API:", e);
+    tts = null; ttsMode = "webspeech";
+  }
   $("tts-bar").style.width = "100%";
-  $("tts-pct").textContent = "—";
+  $("tts-pct").textContent = ttsMode === "supertonic" ? "100%" : "Web";
 
   // Ready
   $("tag").textContent = m.name;
   if (m.isVL) ib.classList.add("vis");
-  if (!tts) $("tts-btn").style.display = "none";
+  $("tts-btn").title = ttsMode === "supertonic" ? "Supertonic TTS" : "Web Speech TTS";
   ta.disabled = false; ta.focus();
   show("chat");
   welcome();
@@ -443,7 +455,7 @@ function addMsg(role, text, imgUrl) {
   if (text) bub.appendChild(document.createTextNode(text));
   body.appendChild(bub);
 
-  if (role === "a" && tts) {
+  if (role === "a") {
     const act = document.createElement("div"); act.className = "m-act";
     const sp = document.createElement("button"); sp.className = "sp-btn";
     sp.textContent = "\u{1f50a}"; sp.title = "읽기";
@@ -525,7 +537,7 @@ async function generate() {
   msgs.push({ role: "assistant", content: res });
   busy = false; sb.classList.remove("gen"); updBtn(); ta.focus();
 
-  if (autoSpeak && tts && res.trim()) {
+  if (autoSpeak && res.trim()) {
     const sp = bub.closest(".m-body")?.querySelector(".sp-btn");
     speak(res, sp);
   }
@@ -556,26 +568,46 @@ document.addEventListener("paste", e => {
 function detectLang(t) { return /[\u3131-\u3163\uac00-\ud7a3]/.test(t) ? "ko" : "en"; }
 
 async function speak(text, btn) {
-  if (!tts) return;
-  if (curSrc) { try { curSrc.stop(); } catch{} curSrc = null; }
   if (btn) btn.classList.add("speaking");
-  try {
-    const lang = detectLang(text);
-    const voice = $("voice-sel")?.value || "F1";
-    const speed = parseFloat($("spd")?.value || "1.0");
-    const r = await tts(`<${lang}>${text}</${lang}>`, {
-      speaker_embeddings: `${TTS_VOICE}/${voice}.bin`,
-      num_inference_steps: 5, speed,
-    });
-    if (!audioCtx) audioCtx = new AudioContext();
-    const buf = audioCtx.createBuffer(1, r.audio.length, r.sampling_rate);
-    buf.getChannelData(0).set(r.audio);
-    const src = audioCtx.createBufferSource();
-    src.buffer = buf; src.connect(audioCtx.destination);
-    curSrc = src;
-    src.onended = () => { if (btn) btn.classList.remove("speaking"); curSrc = null; };
-    src.start();
-  } catch(e) { console.error("TTS err:", e); if (btn) btn.classList.remove("speaking"); }
+
+  if (ttsMode === "supertonic" && tts) {
+    // Supertonic TTS via transformers.js
+    if (curSrc) { try { curSrc.stop(); } catch{} curSrc = null; }
+    try {
+      const lang = detectLang(text);
+      const voice = $("voice-sel")?.value || "F1";
+      const speed = parseFloat($("spd")?.value || "1.0");
+      const r = await tts(`<${lang}>${text}</${lang}>`, {
+        speaker_embeddings: `${TTS_VOICE_BASE}/${voice}.bin`,
+        num_inference_steps: 5, speed,
+      });
+      if (!audioCtx) audioCtx = new AudioContext();
+      const buf = audioCtx.createBuffer(1, r.audio.length, r.sampling_rate);
+      buf.getChannelData(0).set(r.audio);
+      const src = audioCtx.createBufferSource();
+      src.buffer = buf; src.connect(audioCtx.destination);
+      curSrc = src;
+      src.onended = () => { if (btn) btn.classList.remove("speaking"); curSrc = null; };
+      src.start();
+    } catch(e) {
+      console.warn("Supertonic speak failed, falling back to Web Speech:", e);
+      speakWebSpeech(text, btn);
+    }
+  } else {
+    // Web Speech API fallback
+    speakWebSpeech(text, btn);
+  }
+}
+
+function speakWebSpeech(text, btn) {
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  const lang = detectLang(text);
+  u.lang = lang === "ko" ? "ko-KR" : "en-US";
+  u.rate = parseFloat($("spd")?.value || "1.0");
+  u.onend = () => { if (btn) btn.classList.remove("speaking"); };
+  u.onerror = () => { if (btn) btn.classList.remove("speaking"); };
+  window.speechSynthesis.speak(u);
 }
 
 /* ===== EVENTS ===== */
