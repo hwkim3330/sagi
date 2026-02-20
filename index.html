@@ -220,7 +220,7 @@ body{
       <label><span>Language Model</span><span id="llm-pct">0%</span></label>
       <div class="bar-track"><div class="bar-fill" id="llm-bar"></div></div>
     </div>
-    <div id="tts-bar-group">
+    <div id="tts-bar-group" style="display:none">
       <label><span>Voice Engine</span><span id="tts-pct">0%</span></label>
       <div class="bar-track"><div class="bar-fill" id="tts-bar"></div></div>
     </div>
@@ -338,12 +338,12 @@ const $ = id => document.getElementById(id);
 const chat = $("chat"), ta = $("ta"), sb = $("sb");
 const ib = $("ib"), fi = $("fi"), imgPv = $("img-pv"), imgSrc = $("img-pv-src");
 
-/* ===== COI SW ===== */
-if ("serviceWorker" in navigator && !window.crossOriginIsolated) {
-  if (!sessionStorage.getItem("coi")) {
-    sessionStorage.setItem("coi", "1");
-    navigator.serviceWorker.register("coi-sw.js").then(() => location.reload());
-  }
+/* ===== CLEANUP: unregister old COI SW if any ===== */
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    for (const r of regs) r.unregister();
+  });
+  sessionStorage.removeItem("coi");
 }
 
 /* ===== MODEL CARDS ===== */
@@ -405,21 +405,11 @@ async function load(key) {
   }
   $("llm-bar").style.width = "100%"; $("llm-pct").textContent = "100%";
 
-  // TTS (optional)
-  try {
-    $("ld-status").textContent = "음성 엔진 로딩...";
-    tts = await pipeline("text-to-speech", TTS_ID, {
-      device: "wasm",
-      progress_callback: ({status,file,loaded,total}) => {
-        if (status==="progress") { tf.set(file,{loaded,total}); ub(tf,"tts-bar","tts-pct"); }
-      },
-    });
-  } catch(e) {
-    console.warn("TTS failed:", e);
-    tts = null;
-  }
+  // TTS: Supertonic-TTS-2-ONNX not compatible with transformers.js pipeline yet
+  // (missing preprocessor_config.json). Skip for now.
+  tts = null;
   $("tts-bar").style.width = "100%";
-  $("tts-pct").textContent = tts ? "100%" : "N/A";
+  $("tts-pct").textContent = "—";
 
   // Ready
   $("tag").textContent = m.name;
