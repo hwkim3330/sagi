@@ -296,24 +296,24 @@ import {
 
 /* ===== CONFIG ===== */
 const MODELS = {
-  falcon: {
-    id: "onnx-community/Falcon-H1-Tiny-90M-Instruct-ONNX",
-    name: "Falcon 90M", icon: "\u26a1", desc: "빠르고 가벼움",
-    size: "~180 MB", lang: "EN / KO",
-    dtype: "fp16", task: "text-generation",
-    sample: false, maxTokens: 512,
-  },
   lfm: {
     id: "onnx-community/LFM2-1.2B-ONNX",
-    name: "LFM2 1.2B", icon: "\u{1f9e0}", desc: "스마트",
-    size: "~700 MB", lang: "Multilingual",
+    name: "LFM2 1.2B", icon: "\u{1f9e0}", desc: "한국어 추천",
+    size: "~700 MB", lang: "한국어 / English",
     dtype: "q4f16", task: "text-generation",
     sample: true, temp: 0.7, maxTokens: 512,
   },
+  falcon: {
+    id: "onnx-community/Falcon-H1-Tiny-90M-Instruct-ONNX",
+    name: "Falcon 90M", icon: "\u26a1", desc: "영어 특화, 빠름",
+    size: "~180 MB", lang: "English",
+    dtype: "fp16", task: "text-generation",
+    sample: false, maxTokens: 512,
+  },
   vlm: {
     id: "onnx-community/LFM2-VL-450M-ONNX",
-    name: "LFM2-VL", icon: "\u{1f441}\ufe0f", desc: "이미지+대화",
-    size: "~300 MB", lang: "Vision",
+    name: "LFM2-VL", icon: "\u{1f441}\ufe0f", desc: "이미지 인식",
+    size: "~300 MB", lang: "Vision + Text",
     dtype: "q4", task: "image-text-to-text",
     sample: true, temp: 0.7, maxTokens: 256, isVL: true,
   },
