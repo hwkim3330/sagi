@@ -1,0 +1,18 @@
+{
+  "name": "SAGI - AI Voice Chat",
+  "short_name": "SAGI",
+  "description": "Browser-based AI voice assistant with TTS",
+  "start_url": ".",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#FDF6F0",
+  "theme_color": "#E8756B",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%23E8756B'/><stop offset='1' stop-color='%23D4614F'/></linearGradient></defs><rect width='200' height='200' rx='44' fill='url(%23g)'/><circle cx='78' cy='100' r='18' fill='white'/><path d='M112 72Q128 100 112 128' stroke='white' stroke-width='6' fill='none' stroke-linecap='round'/><path d='M128 58Q152 100 128 142' stroke='white' stroke-width='6' fill='none' stroke-linecap='round' opacity='.6'/><path d='M144 44Q176 100 144 156' stroke='white' stroke-width='6' fill='none' stroke-linecap='round' opacity='.3'/></svg>",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
